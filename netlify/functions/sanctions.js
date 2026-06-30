@@ -10,12 +10,17 @@
 
 const SOURCES = {
   eu: {
-    url: "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content",
+    // Primary: official European Commission XML feed.
+    // Fallback: OpenSanctions mirror (daily-synced from the same EU source).
+    urls: [
+      "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content",
+      "https://data.opensanctions.org/datasets/latest/eu_fsf/targets.simple.csv",
+    ],
     label: "EU Consolidated Financial Sanctions List",
     portal: "https://www.sanctionsmap.eu/",
   },
   un: {
-    url: "https://scsanctions.un.org/resources/xml/en/consolidated.xml",
+    urls: ["https://scsanctions.un.org/resources/xml/en/consolidated.xml"],
     label: "UN Security Council Consolidated List",
     portal: "https://www.un.org/securitycouncil/content/un-sc-consolidated-list",
   },
@@ -38,17 +43,34 @@ async function getList(key) {
   const now = Date.now();
   if (CACHE[key].text && now - CACHE[key].ts < TTL) return CACHE[key].text;
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 8500);
-  try {
-    const r = await fetch(SOURCES[key].url, { signal: ctrl.signal });
-    if (!r.ok) throw new Error(`${SOURCES[key].label} returned ${r.status}`);
-    const text = await r.text();
-    CACHE[key] = { text, ts: now };
-    return text;
-  } finally {
-    clearTimeout(t);
+  let lastErr = null;
+  for (const url of SOURCES[key].urls) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 9500);
+    try {
+      // Some EU endpoints reject default Node fetch headers — set a recognisable UA.
+      const r = await fetch(url, {
+        signal: ctrl.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; Probity-Compliance/1.0; +https://probity.app)",
+          Accept: "application/xml, text/xml, text/csv, */*",
+          "Accept-Language": "en",
+        },
+      });
+      if (!r.ok) {
+        lastErr = new Error(`${SOURCES[key].label} returned ${r.status}`);
+        continue;
+      }
+      const text = await r.text();
+      CACHE[key] = { text, ts: now };
+      return text;
+    } catch (e) {
+      lastErr = e;
+    } finally {
+      clearTimeout(t);
+    }
   }
+  throw lastErr || new Error(`${SOURCES[key].label} unavailable`);
 }
 
 function findMatches(text, tokens, label) {

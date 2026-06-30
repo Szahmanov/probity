@@ -183,16 +183,24 @@ function adjudicatePrompt(input){
     { role:"system", content:
       "You are a conservative, evidence-bound sanctions and counterparty due-diligence analyst for a small business. "+
       "You NEVER invent facts. A shared surname or common name is NOT a match: a genuine sanctions match needs the name AND "+
-      "corroborating detail (country, role, entity type, programme) to line up with the counterparty. Missing VAT is a minor gap, "+
-      "not a red flag by itself. Write all human-readable text in "+lang+". Output STRICT JSON only, no prose around it." },
+      "corroborating detail (country, role, entity type, programme) to line up with the counterparty. "+
+      "RULES YOU MUST FOLLOW:\n"+
+      "- Adverse-media findings must come from the adverse-media search results provided. NEVER fabricate a finding from missing data.\n"+
+      "- 'No VAT number' is NOT adverse media and NOT a key risk. For an individual (a personal name, not a company) VAT is irrelevant — ignore it entirely. "+
+      "For a company without VAT, mention it only once as an administrative note, never as a risk.\n"+
+      "- keyRisks must be REAL, evidence-backed risks (a confirmed sanctions hit, a credible adverse-media story about THIS counterparty). "+
+      "If there are none, return an empty keyRisks array.\n"+
+      "Write all human-readable text in "+lang+". Output STRICT JSON only, no prose around it." },
     { role:"user", content:
       "COUNTERPARTY AND EVIDENCE:\n"+JSON.stringify(input,null,1)+
       "\n\nTasks:\n"+
       "1) For each sanctions snippet decide isMatch (true/false), confidence 0-1, and extract programme + reason from the snippet text.\n"+
-      "2) Summarise only GENUINE adverse-media findings about THIS counterparty; ignore namesakes and irrelevant results.\n"+
+      "2) Summarise only GENUINE adverse-media findings about THIS counterparty from the adverseResults provided; ignore namesakes and irrelevant results. "+
+      "If adverseResults is empty or irrelevant, return an empty adverseFindings array.\n"+
       "3) draftScore 0-100 (0 clean, 100 sanctioned/severe). draftDecision rule: any confirmed sanctions match => DO_NOT_PROCEED; "+
-      "notable unresolved adverse media or an invalid VAT => at least ENHANCED_DUE_DILIGENCE; otherwise PROCEED.\n"+
-      "4) draftSummary: 2-3 plain sentences.\n\n"+
+      "credible adverse media about THIS counterparty => at least ENHANCED_DUE_DILIGENCE; otherwise PROCEED. "+
+      "A missing VAT alone NEVER triggers ENHANCED_DUE_DILIGENCE.\n"+
+      "4) draftSummary: 2-3 plain sentences focused on what the evidence actually shows. Do not mention missing VAT in the summary unless it is the only notable observation about a company.\n\n"+
       'Return JSON: {"sanctionsAssessment":[{"source":"","isMatch":false,"confidence":0,"programme":"","reason":""}],'+
       '"confirmedSanctionsHits":[{"source":"","programme":"","detail":""}],'+
       '"adverseFindings":[{"title":"","summary":"","severity":"low","link":""}],'+
@@ -205,11 +213,16 @@ function auditPrompt(input, draft){
     { role:"system", content:
       "You are a SENIOR compliance reviewer auditing a junior analyst's draft. Be skeptical. Your job is to catch errors: "+
       "coincidental name matches treated as real hits, over- or under-stated severity, and decisions not supported by the evidence. "+
-      "You may raise OR lower the score. If the draft is sound, confirm it. Write all human-readable text in "+lang+". Output STRICT JSON only." },
+      "You may raise OR lower the score. If the draft is sound, confirm it.\n"+
+      "STRICT RULES:\n"+
+      "- 'No VAT number' is NEVER a key risk. Remove any such entry from keyRisks if the draft included it. For a personal name, ignore VAT entirely.\n"+
+      "- adverseFindings must be backed by the adverseResults in the evidence. If the draft invented findings, drop them.\n"+
+      "- keyRisks must be a SHORT list of real, evidence-backed concerns. Empty array if nothing genuine surfaced.\n"+
+      "Write all human-readable text in "+lang+". Output STRICT JSON only." },
     { role:"user", content:
       "INPUT EVIDENCE:\n"+JSON.stringify(input,null,1)+"\n\nANALYST DRAFT:\n"+JSON.stringify(draft,null,1)+
-      "\n\nRe-examine every claimed sanctions hit against its snippet and drop coincidental name overlaps. Re-rate adverse findings. "+
-      "Then produce the final assessment.\n\n"+
+      "\n\nRe-examine every claimed sanctions hit against its snippet and drop coincidental name overlaps. Re-rate adverse findings against the actual adverseResults. "+
+      "Strip any 'missing VAT' entries from keyRisks. Then produce the final assessment.\n\n"+
       'Return JSON: {"finalScore":0,"finalDecision":"PROCEED",'+
       '"summary":"","confirmedSanctionsHits":[{"source":"","programme":"","detail":""}],'+
       '"adverseFindings":[{"title":"","summary":"","severity":"low","link":""}],'+
@@ -248,7 +261,13 @@ function renderResult(res){
   const col = decColor(decision);
   const hits = (f.confirmedSanctionsHits||[]).filter(h=>h && (h.source||h.detail||h.programme));
   const findings = (f.adverseFindings||[]).filter(x=>x && x.title);
-  const risks = (f.keyRisks||[]).filter(Boolean);
+  // Safety net: AI sometimes lists "no VAT" as a risk even when told not to. Strip it here.
+  const risks = (f.keyRisks||[]).filter(rk=>{
+    if (!rk) return false;
+    const low = String(rk).toLowerCase();
+    if (/(vat|ддс|дсс|tva|mwst|iva)/.test(low) && /(missing|absen|no |липс|без|not provided|няма)/.test(low)) return false;
+    return true;
+  });
 
   const r = document.getElementById("results");
   r.innerHTML = "";

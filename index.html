@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Probity — Counterparty Clearance</title>
+<meta name="description" content="Autonomous counterparty due-diligence: validates registration, screens official EU & UN sanctions lists, scans adverse media, and returns a cited clearance verdict." />
+<meta name="theme-color" content="#11161D" />
+<link rel="manifest" href="manifest.json" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#F4F5F7; --ink:#11161D; --panel:#FFFFFF; --line:#DCE0E6;
+    --muted:#5B6571; --accent:#1E4E8C; --accent-weak:#EAF0F8;
+    --green:#1E7A46; --amber:#B26A00; --red:#B00020;
+    --shadow:0 1px 2px rgba(17,22,29,.04), 0 8px 24px rgba(17,22,29,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    background:var(--paper); color:var(--ink);
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+  a{color:var(--accent)}
+  button{font-family:inherit}
+
+  /* ---- header ---- */
+  header{
+    border-bottom:1px solid var(--line); background:var(--panel);
+    position:sticky; top:0; z-index:5;
+  }
+  .bar{
+    max-width:1180px; margin:0 auto; padding:14px 22px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .mark{display:flex; align-items:baseline; gap:10px}
+  .mark .glyph{
+    font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px;
+    border:1.5px solid var(--ink); border-radius:4px; padding:2px 6px; letter-spacing:1px;
+  }
+  .mark h1{font-size:19px; letter-spacing:-.01em; font-weight:700; margin:0}
+  .mark span{color:var(--muted); font-size:12.5px; letter-spacing:.02em}
+  .bar .spacer{flex:1}
+  .amlr{
+    font-size:11.5px; color:var(--muted); border:1px solid var(--line);
+    border-radius:999px; padding:4px 11px; white-space:nowrap;
+  }
+  .amlr b{color:var(--ink); font-weight:600}
+  .lang{display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden}
+  .lang button{
+    background:var(--panel); border:0; padding:6px 11px; cursor:pointer;
+    font-size:12.5px; color:var(--muted); font-weight:500;
+  }
+  .lang button.on{background:var(--ink); color:#fff}
+
+  /* ---- layout ---- */
+  main{max-width:1180px; margin:0 auto; padding:26px 22px 60px;
+    display:grid; grid-template-columns:360px 1fr; gap:26px; align-items:start}
+  @media (max-width:880px){ main{grid-template-columns:1fr; padding:20px 16px 48px} }
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow)}
+  .panel .pad{padding:20px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 4px}
+
+  /* ---- intake form ---- */
+  .intake{position:sticky; top:78px}
+  label{display:block; font-size:12.5px; font-weight:600; margin:14px 0 5px; color:var(--ink)}
+  label:first-of-type{margin-top:6px}
+  .hint{font-weight:400; color:var(--muted)}
+  input,select{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:7px;
+    font-family:inherit; font-size:14px; color:var(--ink); background:#fff;
+  }
+  input:focus,select:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent)}
+  .vat-row{display:grid; grid-template-columns:96px 1fr; gap:8px}
+  .vat-row select{padding-left:10px}
+  .run{
+    width:100%; margin-top:18px; padding:13px; border:0; border-radius:8px;
+    background:var(--ink); color:#fff; font-size:14.5px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:9px;
+  }
+  .run:hover{background:#000}
+  .run:disabled{opacity:.55; cursor:default}
+  .formnote{font-size:11.5px; color:var(--muted); margin-top:12px; line-height:1.45}
+
+  .saved{margin-top:22px}
+  .saved h3{font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 8px}
+  .case{
+    display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:7px; margin-bottom:7px; cursor:pointer; background:#fff;
+  }
+  .case:hover{border-color:var(--accent)}
+  .dot{width:8px; height:8px; border-radius:50%; flex:none}
+  .dot.PROCEED{background:var(--green)} .dot.ENHANCED_DUE_DILIGENCE{background:var(--amber)} .dot.DO_NOT_PROCEED{background:var(--red)}
+  .case .nm{font-size:13px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .case .sc{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted)}
+
+  /* ---- results column ---- */
+  .results{min-height:60vh; display:flex; flex-direction:column; gap:18px}
+
+  .empty{
+    border:1px dashed var(--line); border-radius:10px; padding:46px 30px; text-align:center; color:var(--muted);
+  }
+  .empty .big{font-size:17px; color:var(--ink); font-weight:600; margin-bottom:6px}
+  .empty .steps{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:18px}
+  .empty .steps span{font-family:"IBM Plex Mono",monospace; font-size:11.5px; border:1px solid var(--line);
+    border-radius:999px; padding:5px 11px; color:var(--muted)}
+
+  /* ---- loading stepper ---- */
+  .loader{padding:24px}
+  .loader .row{display:flex; align-items:center; gap:12px; padding:9px 0; color:var(--muted); font-size:14px}
+  .loader .row b{font-weight:500; color:var(--ink)}
+  .tick{width:18px; height:18px; border-radius:50%; border:2px solid var(--line); flex:none; position:relative}
+  .row.done .tick{border-color:var(--green); background:var(--green)}
+  .row.done .tick::after{content:"✓"; color:#fff; font-size:11px; position:absolute; inset:0; display:flex; align-items:center; justify-content:center}
+  .row.active .tick{border-color:var(--accent); border-top-color:transparent; animation:spin .7s linear infinite}
+  .row.active{color:var(--ink)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---- verdict stamp (signature element) ---- */
+  .verdict{position:relative; border:2px solid var(--ink); border-radius:10px; overflow:hidden}
+  .verdict .inner{padding:22px 24px; display:flex; align-items:center; gap:22px; flex-wrap:wrap}
+  .verdict.PROCEED{border-color:var(--green)} .verdict.ENHANCED_DUE_DILIGENCE{border-color:var(--amber)} .verdict.DO_NOT_PROCEED{border-color:var(--red)}
+  .stamp{
+    border:2px solid currentColor; border-radius:7px; padding:10px 16px; text-align:center; flex:none;
+  }
+  .PROCEED .stamp,.PROCEED .verdict-label{color:var(--green)}
+  .ENHANCED_DUE_DILIGENCE .stamp,.ENHANCED_DUE_DILIGENCE .verdict-label{color:var(--amber)}
+  .DO_NOT_PROCEED .stamp,.DO_NOT_PROCEED .verdict-label{color:var(--red)}
+  .stamp .word{font-weight:700; font-size:18px; letter-spacing:.04em; text-transform:uppercase; line-height:1.15}
+  .stamp .sub{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.14em; color:var(--muted); margin-top:3px}
+  .vmeta{flex:1; min-width:200px}
+  .vmeta .who{font-size:18px; font-weight:700; line-height:1.2}
+  .vmeta .where{color:var(--muted); font-size:13px; margin-top:2px}
+  .score{margin-top:12px; display:flex; align-items:center; gap:11px}
+  .score .track{flex:1; height:7px; background:var(--line); border-radius:99px; overflow:hidden}
+  .score .fill{height:100%; border-radius:99px}
+  .score .num{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px}
+  .summary{padding:0 24px 20px; color:var(--ink); font-size:14px}
+
+  /* ---- evidence cards ---- */
+  .card .pad{padding:18px 20px}
+  .card h2{font-size:14px; margin:0 0 2px; display:flex; align-items:center; gap:9px; font-weight:700}
+  .badge{font-family:"IBM Plex Mono",monospace; font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); font-weight:500}
+  .badge.hit{color:var(--red); border-color:#e7c4ca; background:#fcf2f3}
+  .badge.clear{color:var(--green); border-color:#c5e2d1; background:#f1f9f4}
+  .badge.warn{color:var(--amber); border-color:#ecd9b8; background:#fbf5ea}
+  .kv{display:flex; gap:10px; font-size:13.5px; padding:6px 0; border-top:1px solid var(--line)}
+  .kv:first-of-type{border-top:0}
+  .kv .k{color:var(--muted); width:120px; flex:none}
+  .kv .v{font-weight:500}
+  .finding{padding:11px 0; border-top:1px solid var(--line)}
+  .finding:first-child{border-top:0}
+  .finding .ft{font-weight:600; font-size:13.5px; margin-bottom:3px; display:flex; gap:8px; align-items:flex-start}
+  .sev{width:8px; height:8px; border-radius:50%; margin-top:6px; flex:none}
+  .sev.high{background:var(--red)} .sev.medium{background:var(--amber)} .sev.low{background:var(--muted)}
+  .finding .fs{color:var(--muted); font-size:13px}
+  .finding .src{font-size:12px; margin-top:4px}
+  .muted-note{color:var(--muted); font-size:13px}
+
+  /* ---- decision log / self-audit ---- */
+  .log .step{padding:13px 0; border-top:1px solid var(--line)}
+  .log .step:first-child{border-top:0}
+  .log .lbl{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-bottom:5px}
+  .log .step.audit .lbl{color:var(--amber)}
+  .log p{margin:0; font-size:13.5px}
+  .log .change{margin-top:7px; font-size:13px; color:var(--ink); background:var(--accent-weak); border-radius:7px; padding:9px 11px}
+
+  .lists{display:flex; flex-wrap:wrap; gap:7px; margin-top:10px}
+  .lists a{font-size:12px; text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:4px 10px; color:var(--muted)}
+  .lists a:hover{border-color:var(--accent); color:var(--accent)}
+
+  .actions{display:flex; gap:9px; flex-wrap:wrap}
+  .ghost{background:#fff; border:1px solid var(--line); border-radius:7px; padding:8px 13px; font-size:12.5px; cursor:pointer; color:var(--ink); font-weight:500}
+  .ghost:hover{border-color:var(--accent); color:var(--accent)}
+
+  .disclaimer{font-size:12px; color:var(--muted); line-height:1.5; border-top:1px solid var(--line); padding-top:14px}
+  .err{background:#fcf2f3; border:1px solid #e7c4ca; color:var(--red); border-radius:8px; padding:12px 14px; font-size:13.5px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="mark">
+      <span class="glyph">PB</span>
+      <h1>Probity</h1>
+      <span data-i18n="tagline">Counterparty clearance</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="amlr" data-i18n="amlr"><b>EU AMLR</b> — counterparty screening mandatory from Jul 2026</div>
+    <div class="lang">
+      <button id="en" class="on" onclick="setLang('en')">EN</button>
+      <button id="bg" onclick="setLang('bg')">BG</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- INTAKE -->
+  <section class="panel intake">
+    <div class="pad">
+      <p class="eyebrow" data-i18n="intakeEyebrow">New clearance</p>
+      <label data-i18n="lblName">Counterparty name <span class="hint" data-i18n="lblNameHint">— person or company</span></label>
+      <input id="name" placeholder="e.g. Orion Trading EOOD" autocomplete="off" />
+
+      <label data-i18n="lblCountry">Country</label>
+      <select id="country"></select>
+
+      <label data-i18n="lblVat">VAT number <span class="hint" data-i18n="lblVatHint">— optional, enables live registration check</span></label>
+      <div class="vat-row">
+        <select id="vatcc"></select>
+        <input id="vat" placeholder="123456789" autocomplete="off" class="mono" />
+      </div>
+
+      <button class="run" id="run" onclick="runClearance()">
+        <span data-i18n="runBtn">Run clearance</span>
+      </button>
+      <p class="formnote" data-i18n="formnote">Probity validates the VAT registration, screens the official EU and UN sanctions lists, scans adverse media, then adjudicates and self-audits the findings. Nothing is stored outside this device.</p>
+
+      <div class="saved" id="savedWrap" style="display:none">
+        <h3 data-i18n="savedTitle">Saved clearances</h3>
+        <div id="savedList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="results" id="results">
+    <div class="empty">
+      <div class="big" data-i18n="emptyBig">No clearance run yet</div>
+      <div data-i18n="emptySub">Enter a counterparty and Probity will work through the full due-diligence loop autonomously.</div>
+      <div class="steps">
+        <span data-i18n="s1">Validate registration</span>
+        <span data-i18n="s2">Screen sanctions lists</span>
+        <span data-i18n="s3">Scan adverse media</span>
+        <span data-i18n="s4">Adjudicate matches</span>
+        <span data-i18n="s5">Self-audit</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
